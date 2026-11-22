@@ -74,8 +74,8 @@ export class CodexSession {
           ephemeral: true,
           sandbox: 'read-only',
           approvalPolicy: 'never',
-          config: { mcp_servers: {} },
-          developerInstructions: 'Отвечай кратко по-русски, обычным текстом для озвучивания, максимум 600 символов. Не используй инструменты и локальные данные.',
+          config: { mcp_servers: {}, web_search: 'live' },
+          developerInstructions: 'Отвечай кратко по-русски, обычным текстом для озвучивания, максимум 600 символов. Для актуальных сведений или по просьбе пользователя используй встроенный веб-поиск и назови источники простыми словами. Не используй локальные файлы, команды и другие инструменты.',
         });
         threadId = reply.result?.thread?.id;
         if (!threadId) throw new Error('Codex did not create a thread');
@@ -132,6 +132,9 @@ export class CodexSession {
     const turn = this.#turns.get(id);
     if (!turn) return;
     const item = message.params?.item;
+    if (message.method === 'item/completed' && item?.type === 'webSearch') {
+      console.log('Codex web search completed');
+    }
     if (message.method === 'item/completed' && item?.type === 'agentMessage' && item.text) {
       turn.text = item.text;
     }
