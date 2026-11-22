@@ -1,0 +1,12 @@
+[Unit]
+Description=Alice voice skill for Codex
+
+[Service]
+WorkingDirectory=%h/alice-codex
+ExecStart=/usr/bin/node %h/alice-codex/server.mjs
+Restart=on-failure
+UMask=0077
+NoNewPrivileges=true
+
+[Install]
+WantedBy=default.target

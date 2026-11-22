@@ -1,0 +1,10 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "strict": true,
+    "noEmitOnError": true,
+    "outDir": "dist"
+  },
+  "include": ["server.mts"]
+}
