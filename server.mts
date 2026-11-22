@@ -1,7 +1,8 @@
 import http from 'node:http';
-import { spawn } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { timingSafeEqual } from 'node:crypto';
+import { setTimeout as delay } from 'node:timers/promises';
+import { CodexSession } from './codex-session.mjs';
 
 interface AliceRequest {
   version?: unknown;
@@ -30,37 +31,34 @@ if (!/^[a-f0-9]{64}$/.test(token)) throw new Error('Invalid webhook token');
 const route = Buffer.from('/alice-codex/' + token);
 const jobs = new Map<string, Job>();
 let running = 0;
+let codex = new CodexSession();
 
 function reply(res: http.ServerResponse, text: string, end_session = false) {
   res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
   res.end(JSON.stringify({ version: '1.0', response: { text, end_session } }));
 }
 
-function start(owner: string, id: string, question: string) {
+async function start(owner: string, id: string, question: string) {
   const startedAt = performance.now();
   const current: Job = { id, question };
-  const child = spawn(process.env.CODEX_BIN ?? 'codex', [
-    'exec', '--sandbox', 'read-only', '--skip-git-repo-check',
-    '--ignore-user-config', '--ignore-rules', '--ephemeral', '--color', 'never', '-',
-  ], { timeout: 90000, killSignal: 'SIGKILL' });
   jobs.set(owner, current);
   running++;
-  let output = '';
-  child.stdout.setEncoding('utf8');
-  child.stdout.on('data', (chunk: string) => { output = (output + chunk).slice(0, 8000); });
-  child.stderr.resume();
-  child.stdin.on('error', () => {});
-  child.on('error', (error: NodeJS.ErrnoException) => console.error('Could not start Codex:', error.code));
-  child.once('close', (code, signal) => {
+  let text: string;
+  let success = false;
+  try {
+    if (codex.closed) codex = new CodexSession();
+    const output = await codex.ask(owner, question);
+    text = output.trim().replaceAll(/[*#`]/g, '').replaceAll(/\s+/g, ' ').slice(0, 900);
+    if (!text) throw new Error('Empty Codex reply');
+    success = true;
+  } catch {
+    text = 'Кодекс не смог ответить. Попробуйте задать вопрос ещё раз.';
+  } finally {
     running--;
-    const success = code === 0 && Boolean(output.trim());
-    const text = success
-      ? output.trim().replaceAll(/[*#`]/g, '').replaceAll(/\s+/g, ' ').slice(0, 900)
-      : 'Кодекс не смог ответить. Попробуйте задать вопрос ещё раз.';
-    current.result = { text, success, finishedAt: Date.now() };
-    console.log('Codex completed:', code, signal, Math.round(performance.now() - startedAt), 'ms');
-  });
-  child.stdin.end('Ответь кратко по-русски, обычным текстом для озвучивания, максимум 600 символов. Не используй инструменты и локальные данные. Вопрос пользователя:\n' + question);
+  }
+  current.result = { text, success, finishedAt: Date.now() };
+  console.log('Codex completed:', success, Math.round(performance.now() - startedAt), 'ms');
+  return text;
 }
 
 const server = http.createServer(async (req, res) => {
@@ -125,8 +123,11 @@ const server = http.createServer(async (req, res) => {
     }
     if (job && !job.result) return reply(res, 'Ваш предыдущий вопрос ещё обрабатывается. Чтобы проверить, скажите «Ответ».');
     if (running >= 2) return reply(res, 'Кодекс сейчас обрабатывает другие вопросы. Повторите свой вопрос чуть позже.');
-    start(owner, id, question);
-    return reply(res, accepted);
+    const warm = codex.hasThread(owner);
+    const result = start(owner, id, question);
+    if (!warm) return reply(res, accepted);
+    const waitMs = Math.max(0, 2100 - (performance.now() - receivedAt));
+    return reply(res, await Promise.race([result, delay(waitMs, accepted, { ref: false })]));
   } catch {
     res.writeHead(400).end();
   }
