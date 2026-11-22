@@ -126,7 +126,7 @@ const server = http.createServer(async (req, res) => {
     const warm = codex.hasThread(owner);
     const result = start(owner, id, question);
     if (!warm) return reply(res, accepted);
-    const waitMs = Math.max(0, 2100 - (performance.now() - receivedAt));
+    const waitMs = Math.max(0, 3300 - (performance.now() - receivedAt));
     return reply(res, await Promise.race([result, delay(waitMs, accepted, { ref: false })]));
   } catch {
     res.writeHead(400).end();
