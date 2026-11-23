@@ -42,7 +42,7 @@ codex app-server --help
 
 ## 2. Соберите и проверьте вебхук локально
 
-Клонируйте репозиторий или свой форк в `~/alice-codex`. Для текущего приватного репозитория нужно иметь к нему доступ.
+Клонируйте репозиторий или свой форк в `~/alice-codex`.
 
 ```sh
 git clone https://github.com/chmaxone/alice-codex.git ~/alice-codex
