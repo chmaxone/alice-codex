@@ -45,7 +45,7 @@ codex app-server --help
 Клонируйте репозиторий или свой форк в `~/alice-codex`. Для текущего приватного репозитория нужно иметь к нему доступ.
 
 ```sh
-git clone https://github.com/Maxim-Chugaev/alice-codex.git ~/alice-codex
+git clone https://github.com/chmaxone/alice-codex.git ~/alice-codex
 cd ~/alice-codex
 npm ci
 npm run build
