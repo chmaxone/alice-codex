@@ -1,6 +1,8 @@
 import { spawn } from 'node:child_process';
 import { createInterface } from 'node:readline';
 
+const defaultSystemPrompt = 'Отвечай кратко по-русски, обычным текстом для озвучивания, максимум 600 символов. Для актуальных сведений или по просьбе пользователя используй встроенный веб-поиск и назови источники простыми словами. Не используй локальные файлы, команды и другие инструменты.';
+
 interface Message {
   id?: number;
   method?: string;
@@ -75,7 +77,7 @@ export class CodexSession {
           sandbox: 'read-only',
           approvalPolicy: 'never',
           config: { mcp_servers: {}, web_search: 'live' },
-          developerInstructions: 'Отвечай кратко по-русски, обычным текстом для озвучивания, максимум 600 символов. Для актуальных сведений или по просьбе пользователя используй встроенный веб-поиск и назови источники простыми словами. Не используй локальные файлы, команды и другие инструменты.',
+          developerInstructions: process.env.CODEX_SYSTEM_PROMPT ?? defaultSystemPrompt,
         });
         threadId = reply.result?.thread?.id;
         if (!threadId) throw new Error('Codex did not create a thread');
