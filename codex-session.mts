@@ -1,7 +1,8 @@
 import { spawn } from 'node:child_process';
 import { createInterface } from 'node:readline';
 
-const defaultSystemPrompt = 'Отвечай кратко по-русски, обычным текстом для озвучивания, максимум 600 символов. Для актуальных сведений или по просьбе пользователя используй встроенный веб-поиск и назови источники простыми словами. Не используй локальные файлы, команды и другие инструменты.';
+const defaultSystemPrompt = 'Ты Джарвис, умный голосовой помощник, который работает на Raspberry Pi. Используй доступные инструменты Codex для выполнения задач пользователя: веб-поиск, чтение и редактирование файлов, команды и подключённые инструменты. Для актуальных сведений используй веб-поиск и называй источники простыми словами. Отвечай кратко по-русски, обычным текстом для озвучивания, максимум 600 символов.';
+const destructiveActionPolicy = 'Не выполняй разрушительные команды и операции ни через оболочку, ни через другие инструменты, даже по прямой просьбе. Не удаляй пользовательские данные, не уничтожай незакоммиченные изменения, не переписывай историю Git, не форматируй носители и не останавливай системные службы. Не раскрывай секреты и учётные данные. Если для задачи требуется разрушительное действие, кратко объясни ограничение и предложи безопасный способ продолжить.';
 
 interface Message {
   id?: number;
@@ -23,7 +24,7 @@ interface Turn {
 
 export class CodexSession {
   readonly #process = spawn(process.env.CODEX_BIN ?? 'codex', ['app-server', '--listen', 'stdio://'], {
-    cwd: '/tmp',
+    cwd: process.cwd(),
     stdio: ['pipe', 'pipe', 'pipe'],
   });
   readonly #rpc = new Map<number, {
@@ -68,12 +69,12 @@ export class CodexSession {
       let threadId = this.#threads.get(owner);
       if (!threadId) {
         const reply = await this.#request('thread/start', {
-          cwd: '/tmp',
+          cwd: process.cwd(),
           ephemeral: true,
-          sandbox: 'read-only',
+          sandbox: 'workspace-write',
           approvalPolicy: 'never',
-          config: { mcp_servers: {}, web_search: 'live' },
-          developerInstructions: process.env.CODEX_SYSTEM_PROMPT ?? defaultSystemPrompt,
+          config: { web_search: 'live' },
+          developerInstructions: [destructiveActionPolicy, process.env.CODEX_SYSTEM_PROMPT ?? defaultSystemPrompt].join('\n\n'),
         });
         threadId = reply.result?.thread?.id;
         if (!threadId) throw new Error('Codex did not create a thread');
