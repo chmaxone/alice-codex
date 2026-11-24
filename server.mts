@@ -102,8 +102,9 @@ const server = http.createServer(async (req, res) => {
     if (/^(выход|выйти|закрой навык|стоп|хватит)$/u.test(command)) {
       return reply(res, 'До встречи!', true);
     }
-    if (!command || /^(помощь|что ты умеешь|запусти навык джарвис помощник)$/u.test(command)) {
-      return reply(res, 'Задайте вопрос. Если я ещё готовлю ответ, скажите «Ответ» или повторите вопрос.');
+    if (!command) return reply(res, 'Слушаю.');
+    if (/^(помощь|что ты умеешь|запусти навык джарвис помощник)$/u.test(command)) {
+      return reply(res, 'Задайте вопрос. Если я ещё думаю, скажите «Ответ».');
     }
     for (const [key, previous] of jobs) {
       if (previous.result && Date.now() - previous.result.finishedAt > 15 * 60_000) jobs.delete(key);
@@ -111,22 +112,20 @@ const server = http.createServer(async (req, res) => {
     const job = jobs.get(owner);
     if (/^(что (?:ответил|сказал) (?:кодекс|код икс)|ответ|результат|(?:прочитай|скажи|дай|озвучь) (?:мне )?ответ|готов(?:о| ли)|статус)$/u.test(command)) {
       if (!job) return reply(res, 'Сначала задайте вопрос.');
-      return reply(res, job.result?.text ?? 'Кодекс ещё работает.');
+      return reply(res, job.result?.text ?? 'Ещё думаю.');
     }
     if (request?.type !== 'SimpleUtterance') return reply(res, 'Задайте вопрос голосом.');
-    const accepted = 'Готовлю ответ. Через несколько секунд скажите «Ответ» или повторите вопрос.';
+    const accepted = 'Думаю. Скажите «Ответ» чуть позже.';
     const question = phrase.replace(/^(?:спроси кодекс(?:а)?|вопрос кодексу)[\s,:]+/iu, '').slice(0, 2000);
     if (job?.id === id) return reply(res, job.result?.text ?? accepted);
     if (job?.question === question) {
-      if (!job.result) return reply(res, 'Ещё готовлю ответ.');
+      if (!job.result) return reply(res, 'Ещё думаю.');
       if (job.result.success && Date.now() - job.result.finishedAt < 45_000) return reply(res, job.result.text);
     }
-    if (job && !job.result) return reply(res, 'Ваш предыдущий вопрос ещё обрабатывается. Чтобы проверить, скажите «Ответ».');
-    if (running >= 2) return reply(res, 'Кодекс сейчас обрабатывает другие вопросы. Повторите свой вопрос чуть позже.');
-    const warm = codex.hasThread(owner);
+    if (job && !job.result) return reply(res, 'Ещё думаю над прошлым вопросом.');
+    if (running >= 2) return reply(res, 'Я занят. Повторите чуть позже.');
     const result = start(owner, id, question);
-    if (!warm) return reply(res, accepted);
-    const waitMs = Math.max(0, 3300 - (performance.now() - receivedAt));
+    const waitMs = Math.max(0, 3900 - (performance.now() - receivedAt));
     return reply(res, await Promise.race([result, delay(waitMs, accepted, { ref: false })]));
   } catch {
     res.writeHead(400).end();

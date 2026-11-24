@@ -61,10 +61,6 @@ export class CodexSession {
     return this.#closed;
   }
 
-  hasThread(owner: string) {
-    return this.#threads.has(owner);
-  }
-
   async ask(owner: string, question: string): Promise<string> {
     const timer = setTimeout(() => this.#close(new Error('Codex turn timed out')), 90_000);
     try {
